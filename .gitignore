@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+data-raw
+data-csv
+docs
+tcrenv
+z_garbage
+
+R/TOPSECRET.R
