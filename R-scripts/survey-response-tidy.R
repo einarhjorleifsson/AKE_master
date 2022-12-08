@@ -8,14 +8,11 @@ sur <-
   read_csv("data-csv/survey-response-only.csv",
            guess_max = 1e6)
 
-# fix "less", "more", "older" --------------------------------------------------
+# remove "less", "more", "older", leaving only the numerical -------------------
 sur <- 
   sur |> 
   # replace "none" and "5ormore" in some of the variables
   mutate(bq_adult   = td_none_and_5ormore(bq_adult),
-         corr = ifelse(bq_adult == 0, "bq_adult_0->1", NA),
-         # Assume there is always one adult
-         bq_adult   = ifelse(bq_adult == 0, 1, bq_adult),
          bq_child   = td_none_and_5ormore(bq_child),
          bq_infant  = td_none_and_5ormore(bq_infant),
          pets_cats  = td_none_and_5ormore(pets_cats),
@@ -27,12 +24,27 @@ sur <-
                             bq_age == "80 or more" ~ "80",
                             TRUE ~ bq_age),
          bq_age = as.integer(bq_age))
+
+# replace 0 adult with 1 adult -------------------------------------------------
+sur <-
+  sur |> 
+  mutate(corr = ifelse(bq_adult == 0, "bq_adult_0->1", NA),
+         # Assume there is always one adult
+         bq_adult   = ifelse(bq_adult == 0, 1, bq_adult))
 # we can check the "correction-log" by:
 sur |> count(corr)
+# if you want to see individual responses corrected (here the first 4 by country) do:
+sur |> 
+  filter(!is.na(corr)) |> 
+  group_by(.cntr) |> 
+  slice(1:4) |> 
+  select(.rid, .cntr, bq_adult, corr) |> 
+  filter(!is.na(corr))
+# .. so no corrections needed by the norwegians :-)
 
 # calculate "decile" income (acturally 11th-tiles) -----------------------------
 #  a little helper function to remove text from bq_p_gross and bq_h_gross
-#   used in the next two "chunks"
+#   used in the next two "sub-chunks"
 td_strip_currency <- function(x) {
   x <-
     x |> 
