@@ -27,6 +27,8 @@ The goal of AKE_master is to contain all the essential code and documents for a 
 * docs: Background documents (not on github)
 * R: Functions only (on github)
 * R-scripts: Various preparatory scripts, not functions (on github)
+  * **survey-response-only.R**: Scripts that reads in the excel "raw"-sheet (sheet 1) and only retains the first 166 columns (the actual survey response) and currently any column that ends with "footprint". In addition some additional (three) columns are currently also retrained. The furture plan is that the footprint variables will be calculated internally within R.
+  * **survey_response-tidy.R**: Various initial wrangling (tidying and transformations).
 * rmd: Thesis documents (on github)
 
 
