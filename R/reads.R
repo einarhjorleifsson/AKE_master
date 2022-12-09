@@ -37,17 +37,36 @@ read_numeric <- function(fil) {
                        guess_max = 1e5,
                        sheet = 3) |> 
     janitor::clean_names() |> 
-    rename(.rid = 1) |> 
+    rename(.rid = 1,
+           hh_type = 12) |> 
     # have to have a response_id
     filter(!is.na(.rid))
   
+  if(str_detect(tolower(fil), "denmark")) {
+    ret <- 
+      ret |> 
+      rename(bq_class = hh_type_165)
+  }
+  
+  if(str_detect(tolower(fil), "finland")) {
+    ret <- 
+      ret |> 
+      rename(bq_class = hh_type_c)
+  }
+  
+  if(str_detect(tolower(fil), "iceland")) {
+    ret <- 
+      ret |> 
+      rename(bq_class = hh_type_c)
+  }
   if(str_detect(tolower(fil), "norway")) {
     ret <-
       ret |> 
       rename(cf_unique_id = cf_response_id,
              cf_income_level = income_level,
              cf_age_group = age_group,
-             cf_household = household) |> 
+             cf_household = household,
+             bq_class = hh_type_c) |> 
       mutate(cf_unique_id = as.character(cf_unique_id)) |> 
       select(-adult_correction)
   }
@@ -55,13 +74,12 @@ read_numeric <- function(fil) {
   if(str_detect(tolower(fil), "sweden")) {
     ret <- 
       ret |> 
-      rename(hh_type = hh_type_12,
+      rename(bq_class = hh_type_196,
              pq_p_gross = bq_p_gross_151,
              bq_h_gross = bq_h_gross_152,
              bq_hhsize_corrected = hh_size_corrected) |> 
       select(-c(bq_p_gross_184,
                 bq_h_gross_186,
-                hh_type_196,
                 adults_corrected_for_0,
                 bq_adult_corrected_zero))
   }
