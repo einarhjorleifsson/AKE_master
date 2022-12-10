@@ -1,0 +1,246 @@
+---
+title: "Me, myself, I"
+subtitle: "Comparisons of derivations from scratch within R vs the one-drive numeric stuff"
+author: "Einar Hjörleifsson"
+date: "2022-12-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+sur <- read_csv("data-csv/survey-response-tran.csv", guess_max = Inf)
+num0 <- read_csv("data-csv/numeric-merged-countries_oldest-excel-files.csv", guess_max = Inf) |> 
+  select(.rid, .cntr, cf_goods_and_services, cf_vehicle_possession)
+num <- read_csv("data-csv/numeric-merged-countries_2022-12-09.csv", guess_max = Inf)
+```
+
+## Basic stuff
+
+### hh_type
+
+```{r}
+sur |> 
+  select(.rid, .cntr, hh_type) |> 
+  left_join(num |> select(.rid, .cntr, .hh_type = hh_type)) |> 
+  count(hh_type, .hh_type)
+```
+
+... looking good
+
+### Adult corrected
+
+```{r}
+d <- 
+  sur |> 
+  select(.rid, .cntr, bq_adult, corr, ) |> 
+  left_join(num |> select(.rid, .cntr, bq_adult_num = bq_adult, adults_corrected))
+```
+
+Overview, expect bq_adult to be the same as adults_corrected
+
+```{r}
+d |> 
+  mutate(diff = case_when(bq_adult == adults_corrected ~ "same",
+                          TRUE ~ "diff")) |> 
+  count(.cntr, diff) |> 
+  spread(diff, n)
+```
+
+... so there are some respondee were there is a difference.
+
+No "logged correction" but difference in survey reported "bq_adult" vs that in the numeric database:
+
+```{r}
+d |> 
+  filter(is.na(corr)) |> 
+  filter(bq_adult != adults_corrected)
+```
+
+so, original bq_adult reported as 2, no "corr", but numeric set to mostly on (bq_adult_num) and then adults_corrected kind of question mark. here we have reported bq_adults being moslyt changed to e lower number in the numeric database.
+
+... discuss with ake
+
+Here another view, in this case were reported survey "bq_adult" is not the same as ...
+
+```{r}
+d |> 
+  filter(bq_adult != adults_corrected) |> 
+  knitr::kable()
+```
+
+... discuss with ake
+
+## Carbon footprint derivations
+
+### Pets
+
+```{r}
+sur |> 
+  select(.rid, .cntr, bq_hu, pets_dogs, pets_cats, .cf_pets) |> 
+  left_join(num |> select(.rid, .cntr, cf_pets)) |> 
+  mutate(.cf_pets_hu = .cf_pets/bq_hu) |> 
+  filter(!near(.cf_pets_hu, cf_pets, tol = 1)) |> 
+  knitr::kable()
+```
+
+... hmmm, something is not right.
+
+... discuss with ake
+
+### Diet
+
+```{r}
+sur |> 
+  select(.rid, .cntr, diet, diet_meat, .cf_diet) |> 
+  left_join(num |> select(.rid, .cntr, cf_diet)) |> 
+  filter(!near(.cf_diet, cf_diet))
+```
+
+... things looking good
+
+
+### Local travel
+
+```{r}
+sur |> 
+  select(.rid, .cntr, lt_pt_km, .cf_public_transportation) |>
+  left_join(num |> select(.rid, .cntr, cf_public_transportation)) |> 
+  filter(!near(.cf_public_transportation, cf_public_transportation, tol = 1)) |> 
+  knitr::kable()
+```
+
+... something wrotten in derivations of 3 respondees in the State of Finland
+
+### Leisure travel
+
+```{r}
+sur |> 
+  select(.rid, .cntr, .cf_leisure_travel) |>
+  left_join(num |> select(.rid, .cntr, cf_leisure_travel)) |> 
+  filter(!near(.cf_leisure_travel, cf_leisure_travel, tol = 1)) |> 
+  mutate(diff = .cf_leisure_travel / cf_leisure_travel,
+         diff = round(diff, 2)) |> 
+  knitr::kable()
+```
+
+Difference is picked up in the carbon footprint derivations of leisure travel for (mostly) Danish repondees and then some Finish and Icelandic respondees. In the Finish case we have actually zero values in the numeric database.
+
+Another overview of the same thing is:
+
+```{r}
+sur |> 
+  select(.rid, .cntr, .cf_leisure_travel) |>
+  left_join(num |> select(.rid, .cntr, cf_leisure_travel)) |> 
+  mutate(near = case_when(near(.cf_leisure_travel, cf_leisure_travel, tol = 1) ~ "same",
+                              TRUE ~ "diff")) |> 
+  count(.cntr, near) |> 
+  spread(near, n)
+```
+
+So, NO and SE in full conformity, almost all of IS and FI. But something wrotten in the State of Denmark (discrepancy in ~31% of respondees)
+
+### Goods and services
+
+#### pre-exciobase
+
+```{r}
+sur |> 
+  select(.rid, .cntr, .cf_goods_and_services) |>
+  left_join(num0 |> select(.rid, .cntr, cf_goods_and_services)) |> 
+  # NOTE: tolerance is set to quite a high value
+  mutate(near = case_when(near(.cf_goods_and_services, cf_goods_and_services, tol = 100) ~ "near",
+                          TRUE ~ "far")) |> 
+  ggplot(aes(cf_goods_and_services, .cf_goods_and_services, colour = near)) +
+  theme_bw() +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_abline() +
+  scale_colour_brewer(palette = "Set1") +
+  scale_x_log10() +
+  scale_y_log10() +
+  facet_wrap(~ .cntr)
+```
+
+... the rest discrepancies could be the exchange rate used not being the same as specified.
+
+... the tolerance specified is absolute, but since "far" is in the upper range, indicates a percentage problem.
+
+So, in most cases the **original** cf_goods_and_services are ok, but something is again(?) wrotten in the State of Finland. Let's look at the difference from pair-wise angle:¸
+
+```{r}
+tmp <- 
+  sur |> 
+  select(.rid, .cntr, .cf_goods_and_services) |>
+  left_join(num0 |> select(.rid, .cntr, cf_goods_and_services)) |> 
+  mutate(pdiff = (cf_goods_and_services - .cf_goods_and_services) / cf_goods_and_services,
+         pdiff = round(pdiff, 2))
+tmp |> 
+  mutate(pdiff = ifelse(pdiff < -0.1, -0.1, pdiff),
+         pdiff = ifelse(pdiff >  0.1,  0.1, pdiff)) |> 
+  count(.cntr, pdiff) |> 
+  spread(.cntr, n)
+```
+
+The difference is around 3-4%, mostly likely associated with slightly different exchange rate being used.
+
+The NA's are:
+
+```{r}
+tmp |> filter(is.na(pdiff))
+
+```
+
+hmm, hard to believe zero goods and services carbon footprint.
+
+```{r}
+sur |> 
+  ggplot(aes(.cntr, .cf_goods_and_services)) +
+  stat_summary(fun.data = "mean_cl_boot")
+```
+
+Above is interesting because we get different order for countries as when using the exciobase.
+
+#### exciobase
+
+... pending
+
+### Housing
+
+... pending
+
+### Vechicle
+
+... pending
+
+### Second home
+
+... pending
+
+## Geo stuff
+
+### Degurba level 1
+
+```{r}
+sur |> 
+  select(.rid, .cntr, .degurba1) |> 
+  left_join(num |> select(.rid, .cntr, degurba)) |> 
+  count(.degurba1, degurba)
+```
+
+ok, need to find nearest grid point
+
+### Population density
+
+```{r}
+sur |> 
+  select(.rid, .cntr, .tot_p_2018) |> 
+  left_join(num |> select(.rid, .cntr, tot_p_2018)) |> 
+  filter(.tot_p_2018 != .tot_p_2018)
+```
+
+... so things are just dandy here
+
+
