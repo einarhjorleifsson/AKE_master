@@ -136,12 +136,14 @@ calc_cf_leasure_travel <- function(d) {
 #' available within the function.
 #'
 #' @param d A data frame containing ....
+#' @param summarized boolean (default TRUE) indicating it summary or itemized
+#' carbon footprint is returned.
 #'
 #' @return A data frane with additional variable .cf_goods_and_services
 #' @export
 #'
 #' @examples
-calc_cf_goods_and_services_method1 <- function(d) {
+calc_cf_goods_and_services_envimat <- function(d, summarized = TRUE) {
   exchange <- 
     tribble(~.cntr,      ~xch,
             "DK",   7.4543,
@@ -169,10 +171,21 @@ calc_cf_goods_and_services_method1 <- function(d) {
     mutate(eur = val / xch) |> 
     left_join(gs_co2e, by = "variable") |> 
     # multiply by 12 to get the annual esimates
-    mutate(.cf_goods_and_services = eur * co2e_eur * 12) |> 
-    group_by(.rid, .cntr) |> 
-    summarise(.cf_goods_and_services = sum(.cf_goods_and_services),
-              .groups = "drop")
+    mutate(.cf_goods_and_services = eur * co2e_eur * 12)
+  
+  if(summarized) {
+    d2 <- 
+      d2 |> 
+      group_by(.rid, .cntr) |> 
+      summarise(.cf_goods_and_services = sum(.cf_goods_and_services),
+                .groups = "drop")
+  } else {
+    d2 <- 
+      d2 |> 
+      select(.rid, .cntr, variable, val = .cf_goods_and_services) |> 
+      mutate(variable = paste0(".cf_", variable)) |> 
+      spread(variable, val)
+  }
   d |> 
     left_join(d2,
               by = c(".rid", ".cntr"))

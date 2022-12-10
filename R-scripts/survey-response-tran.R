@@ -48,7 +48,7 @@ sur <-
 ## Goods and services ----------------------------------------------------------
 sur <-
   sur |> 
-  calc_cf_goods_and_services_method1()
+  calc_cf_goods_and_services_envimat()
 
 ## Housing ---------------------------------------------------------------------
 
