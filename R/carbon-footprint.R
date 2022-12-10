@@ -74,11 +74,13 @@ cf_public_transportation <- function(km_per_week) {
 #' are calculated as 8000km x 2 (return).
 #'
 #' @param d A data frame containing ....
+#' @param summarized boolean (default TRUE) indicating it summary or itemized
+#' carbon footprint is returned.
 #'
 #' @return A data frame with additional variable .cf_leisure_travel
 #' @export
 #'
-calc_cf_leasure_travel <- function(d) {
+calc_cf_leasure_travel <- function(d, summarized = TRUE) {
   d2 <- 
     d |> 
     select(.cntr, .rid, starts_with("ld_"))  |> 
@@ -109,7 +111,19 @@ calc_cf_leasure_travel <- function(d) {
                           t == "car"   & d == "l" ~ 0,
                           TRUE ~ 0)
     )
-  d4 <- d3 |> group_by(.cntr, .rid) |> summarise(.cf_leisure_travel = sum(cf), .groups = "drop")
+  
+  if(summarized) {
+    d4 <- 
+      d3 |> group_by(.cntr, .rid) |> summarise(.cf_leisure_travel = sum(cf), .groups = "drop")
+  } else {
+    d4 <- 
+      d3 |> 
+      unite(col = "variable", t, d, sep = "_") |> 
+      select(.rid, .cntr, variable, val = cf) |> 
+      mutate(variable = paste0(".cf_ld_", variable)) |> 
+      spread(variable, val)
+  }
+  
   d |> 
     left_join(d4, by = c(".rid", ".cntr"))
 }
@@ -233,4 +247,64 @@ calc_house_ec_m2_year <- function(type, decade) {
                      decade == 2000 & type == "Row house" ~ 0.134,
                      TRUE ~ NA_real_)
   return(gge)
+}
+
+
+# INCOMPLETES ------------------------------------------------------------------
+
+## Vehicles footprint ----------------------------------------------------------
+# distinguish between cf of production vs cf of use. make two separated functions
+# then a third one that uses both if user just wants the sum
+
+#' Title
+#' 
+#' Production and maintenance emissions for vehicle possession based on 
+#' values from [Dillman et. al, 2020](https://www.mdpi.com/2071-1050/12/22/9390#)
+#' (see table 7) and the average lifetime km of a 
+#' vehi(cle as 184,000km.
+#' 
+#' 
+#' 1. Production emissions (kgCO2)/18400km x km of vehicle (veh_km)
+#' 2. Maintenance emissions (kgCO2)/km) x km of vehicle (veh_km)
+#' 3.These values were then divided by the houses size (hh_size_corrected) and 
+#' added together for the total production and maintenance
+#' 
+#' -There is one variable towards the end of the spreadsheet 
+#' (total_vehicle_prod_maint) that contains just the production and maintenance 
+#' emissions
+#' -The cf_vehicle_possession has been replaced with cf_vehicle_possession_pm, 
+#' which includes the emissions from vehicle use plus the emissions from the 
+#' production and maintenance
+#' -The cf_footprint has also been updated to include the 
+#' cf_vehicle_possession_pm values.
+#' -These updates are found in the file 
+#' "country name_data_adults corrected_exiobase_vehicle prod maint_consumption_units"
+
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+foo <- function(x) {
+  
+  # Dilman et al 2020
+  Dilman_2020 <-
+    tribble(~class, ~var, ~mean, ~sd, ~n,
+            "BEV",    "prod",  10.8,   2.28, 24,  # Production: (tCO2 eq.)
+            "BEV",    "effi",  16.7,   3.15, 23,  # Energy Efficiency (kWh/100 km)
+            "BEV",    "wtwe", 132.2, 107.1,  40,  # WTW Emissions (gCO2 eq/km)
+            "BEV",    "main",  10.1,   5.06, 14,  # Maintenance (gCO2 eq/km)
+            "BEV",    "eol",    0.2,   1.55, 13,  # EOL (tCO2 eq)
+            "Petrol", "prod",   6.6,   2.01, 18,
+            "Petrol", "effi",   7.6,   2.12, 17,  # Energy Efficiency (L/100 km)
+            "Petrol", "wtwe", 237.1,  63.64, 23,
+            "Petrol", "main",  12,     5.55, 12,
+            "Petrol", "eol",    0.2,   1.55, 13,
+            "Diesel", "prod",   6.1,   1.25, 6,
+            "Diesel", "effi",   5.2,   1.03, 5,   # Energy Efficiency (L/100 km)
+            "Diesel", "wtwe", 154.3,  32.7,  8,
+            "Diesel", "main",  10.1,   4.82, 4,
+            "Diesel", "eol",   -0.6,   1.06, 4)
 }
