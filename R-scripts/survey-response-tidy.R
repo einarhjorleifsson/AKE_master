@@ -1,5 +1,6 @@
 # Input:  data-csv/survey-response-only.csv
 # Output: data-csv/survey-response-tidy.csv
+#
 
 library(tidyverse)
 source("R/tidy.R")
@@ -7,6 +8,18 @@ source("R/tidy.R")
 sur <- 
   read_csv("data-csv/survey-response-only.csv",
            guess_max = 1e6)
+
+# make vehicle variable names of 1st vehicle explicit --------------------------
+#  this (hopefully) helps downstream
+sur <-
+  sur |> 
+  rename(veh_type1 = veh_type,
+         veh_fuel1 = veh_fuel,
+         veh_bio1 = veh_bio,
+         veh_fossl1 = veh_fossl,
+         veh_ltrs1 = veh_ltrs,
+         veh_kg1 = veh_kg,
+         veh_km1 = veh_km)
 
 # remove "less", "more", "older", leaving only the numerical -------------------
 sur <- 
