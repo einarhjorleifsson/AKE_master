@@ -1,5 +1,5 @@
 ---
-title: "Me, myself, I"
+title: "raw-num comparisons"
 subtitle: "Comparisons of derivations from scratch within R vs the one-drive numeric stuff"
 author: "Einar Hjörleifsson"
 date: "2022-12-09"
@@ -13,9 +13,10 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```{r}
 library(tidyverse)
 sur <- read_csv("data-csv/survey-response-tran.csv", guess_max = Inf)
+num <- read_csv("data-csv/numeric-merged-countries_2022-12-09.csv", guess_max = Inf)
 num0 <- read_csv("data-csv/numeric-merged-countries_oldest-excel-files.csv", guess_max = Inf) |> 
   select(.rid, .cntr, cf_goods_and_services, cf_vehicle_possession)
-num <- read_csv("data-csv/numeric-merged-countries_2022-12-09.csv", guess_max = Inf)
+
 ```
 
 ## Basic stuff
@@ -31,7 +32,7 @@ sur |>
 
 ... looking good
 
-### Adult corrected
+### Adult corrected - value issues
 
 ```{r}
 d <- 
@@ -66,6 +67,7 @@ so, original bq_adult reported as 2, no "corr", but numeric set to mostly on (bq
 
 Here another view, in this case were reported survey "bq_adult" is not the same as ...
 
+
 ```{r}
 d |> 
   filter(bq_adult != adults_corrected) |> 
@@ -73,6 +75,27 @@ d |>
 ```
 
 ... discuss with ake
+
+### Vehicle fuel - recoding issues
+
+
+```{r}
+v_sur <- 
+  sur |> 
+  select(.cntr, .rid, starts_with("veh_fuel")) |> 
+  gather(veh_no, raw, -c(.cntr, .rid))
+v_num <- 
+  num |> 
+  select(.cntr, .rid, starts_with("veh_fuel")) |> 
+  rename(veh_fuel1 = veh_fuel) |> 
+  gather(veh_no, num, -c(.cntr, .rid))
+v_sur |> 
+  left_join(v_num) |> 
+  count(.cntr, raw, num) |> 
+  spread(.cntr, n) |> 
+  arrange(num)
+```
+
 
 ## Carbon footprint derivations
 
